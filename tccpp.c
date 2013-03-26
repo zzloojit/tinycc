@@ -2948,7 +2948,7 @@ ST_FUNC void next(void)
     Sym *nested_list, *s;
     TokenString str;
     struct macro_level *ml;
-
+    {int a = 0;}
  redo:
     if (parse_flags & PARSE_FLAG_SPACES)
         next_nomacro_spc();
