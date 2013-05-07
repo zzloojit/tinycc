@@ -1,0 +1,8 @@
+
+int preprocess()
+{
+  for(;;) 
+  {
+  int a;
+  }
+}

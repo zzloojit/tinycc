@@ -1,0 +1,154 @@
+#include <cstdio>
+#include <cstdlib>
+#include <unistd.h>
+#include <fcntl.h>
+#include <cstring>
+#include <string>
+
+using std::string;
+
+const int INCLUDE_STACK_SIZE = 128;
+const int IFDEF_STACK_SIZE = 128; 
+const int CACHED_INCLUDES_HASH_SIZE = 128;
+const int IO_BUF_SIZE = 8192;
+
+
+#ifdef _WIN32
+static char *normalize_slashes(char *path)
+{
+    char *p;
+    for (p = path; *p; ++p)
+        if (*p == '\\')
+            *p = '/';
+    return path;
+}
+#endif
+
+struct BufferedFile
+{
+  uint8_t *buf_ptr;
+  uint8_t *buf_end;
+  int fd;
+  struct BufferedFile *prev;
+  int line_num;    /* current line number - here to simplify code */
+  int ifndef_macro;  /* #ifndef macro / #endif search */
+  int ifndef_macro_saved; /* saved ifndef_macro */
+  int *ifdef_stack_ptr; /* ifdef_stack value at the start of the file */
+  char filename[1024];    /* filename */
+  unsigned char buffer[IO_BUF_SIZE + 1]; /* extra size for CH_EOB char */
+};
+
+static BufferedFile* file;
+
+struct TCCState {
+
+  char **include_paths;
+  int nb_include_paths;
+
+  char **sysinclude_paths;
+  int nb_sysinclude_paths;
+
+  /* output file for preprocessing (-E) */
+  FILE *ppfp;
+
+  /* compilation */
+  BufferedFile *include_stack[INCLUDE_STACK_SIZE];
+  BufferedFile **include_stack_ptr;
+
+  int ifdef_stack[IFDEF_STACK_SIZE];
+  int *ifdef_stack_ptr;
+
+  string outfile;
+};
+
+
+
+#define CH_EOB   '\\'       /* end of buffer or '\0' char in file */
+#define CH_EOF   (-1)   /* end of file */
+
+
+void tcc_open_bf(TCCState *s1, const char *filename, int initlen)
+{
+  BufferedFile *bf;
+  int buflen = initlen ? initlen : IO_BUF_SIZE;
+
+  bf = (BufferedFile*)malloc(sizeof(BufferedFile) + buflen);
+  bf->buf_ptr = bf->buffer;
+  bf->buf_end = bf->buffer + initlen;
+  bf->buf_end[0] = CH_EOB; /* put eob symbol */
+  strncpy(bf->filename, filename, sizeof(bf->filename));
+
+#ifdef _WIN32
+  normalize_slashes(bf->filename);
+#endif
+
+  bf->line_num = 1;
+  bf->ifndef_macro = 0;
+  bf->ifdef_stack_ptr = s1->ifdef_stack_ptr;
+  bf->fd = -1;
+  bf->prev = file;
+  file = bf;
+}
+
+
+int tcc_open(TCCState *s1, const char *filename)
+{
+  int fd;
+  if (strcmp(filename, "-") == 0)
+    fd = 0, filename = "stdin";
+  else
+    fd = open(filename, O_RDONLY | O_BINARY);
+
+  if (fd < 0)
+    return -1;
+
+  tcc_open_bf(s1, filename, 0);
+  file->fd = fd;
+  return fd;
+}
+
+void tcc_close(void)
+{
+    BufferedFile *bf = file;
+    if (bf->fd > 0) {
+        close(bf->fd);
+    }
+    file = bf->prev;
+    free(bf);
+}
+
+
+int main(int arg, char** argv)
+{
+  TCCState* s = new TCCState();
+
+  const char *filename = argv[1];
+  s->outfile = filename;
+  s->outfile += ".E";
+  int ret =  tcc_open(s, filename);
+  
+  if (ret < 0) 
+  {
+    return ret;
+  }
+  
+  for(;;)
+  {
+    next();
+    if (tok == TOK_EOF)
+    {
+      break;
+    } else if (tok == TOK_LINEFEED)
+    {
+      if (!token_seen)
+        continue;
+      ++line_ref;
+      token_seen = 0;
+    } else if (!token_seen) {
+      d = file->line_num - line_ref;
+      if (file != file_ref || d < 0 || d >= 8)
+        {
+        }
+    }
+  }
+}

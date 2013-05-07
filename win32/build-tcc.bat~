@@ -9,7 +9,7 @@ echo>..\config.h #define TCC_VERSION "%VERSION%"
 @if _%PROCESSOR_ARCHITECTURE%_==_AMD64_ goto x86_64
 
 @set target=-DTCC_TARGET_PE -DTCC_TARGET_I386
-@set CC=gcc -O -fno-strict-aliasing -ggdb
+@set CC=gcc -Os -s -fno-strict-aliasing
 @set P=32
 @goto tools
 
